@@ -143,22 +143,11 @@ parse_tag_from_json() {
 }
 
 extract_assets_from_json() {
-  awk '
-    /"name"[[:space:]]*:/ {
-      if (match($0, /"name"[[:space:]]*:[[:space:]]*"([^"]+)"/, m)) {
-        name = m[1]
-      }
-    }
-    /"browser_download_url"[[:space:]]*:/ {
-      if (match($0, /"browser_download_url"[[:space:]]*:[[:space:]]*"([^"]+)"/, m)) {
-        url = m[1]
-        if (name != "" && url != "") {
-          print name "\t" url
-          name = ""
-        }
-      }
-    }
-  '
+  sed -n 's/.*"browser_download_url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | while IFS= read -r url; do
+    [ -z "$url" ] && continue
+    name="${url##*/}"
+    printf '%s\t%s\n' "$name" "$url"
+  done
 }
 
 build_fallback_assets() {
