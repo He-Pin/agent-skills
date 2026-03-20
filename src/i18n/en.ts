@@ -151,6 +151,27 @@ const en = {
     agentPathsDescription: "Default skill directories for each agent.",
     revealInFinder: "Reveal in Finder",
   },
+
+  // === Repos ===
+  repos: {
+    importRepo: "Import from Git",
+    importLocal: "Import Local Folder",
+    importDescription: "Add a Git repository URL to browse and install skills from it.",
+    importLocalDescription: "Select a local directory containing skills to register as a skill source.",
+    cancel: "Cancel",
+    add: "Add",
+    cloning: "Cloning...",
+    skillRepos: "Skill Sources",
+    reposDescription: "Git repositories and local directories registered as skill sources.",
+    sync: "Sync",
+    remove: "Remove",
+    skillCountLabel: "{{count}} skills",
+    lastSynced: "Synced: {{time}}",
+    noRepos: "No skill sources added yet.",
+    repoSource: "Repo: {{name}}",
+    localSource: "Local",
+    gitSource: "Git",
+  },
 } as const;
 
 export default en;

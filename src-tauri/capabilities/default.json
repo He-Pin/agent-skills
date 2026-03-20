@@ -12,6 +12,7 @@
         { "url": "https://**" }
       ]
     },
-    "opener:allow-reveal-item-in-dir"
+    "opener:allow-reveal-item-in-dir",
+    "dialog:default"
   ]
 }

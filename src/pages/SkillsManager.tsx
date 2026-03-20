@@ -13,8 +13,12 @@ import {
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useSkills, installedAgents, type Skill } from "@/hooks/useSkills";
+import { useRepos } from "@/hooks/useRepos";
+
+/** Skill extended with optional repo origin */
+type SkillWithRepo = Skill & { _repoName?: string };
 import { useAgents, type AgentConfig } from "@/hooks/useAgents";
 import { useResizable } from "@/hooks/useResizable";
 import ResizeHandle from "@/components/ResizeHandle";
@@ -26,6 +30,40 @@ export default function SkillsManager() {
   const { t } = useTranslation();
   const { data: skills, isLoading } = useSkills();
   const { data: agents } = useAgents();
+  const { data: repos } = useRepos();
+
+  // Fetch skills from all subscribed repos
+  const repoSkillQueries = useQueries({
+    queries: (repos ?? []).map((repo) => ({
+      queryKey: ["repo-skills", repo.id],
+      queryFn: () => invoke<Skill[]>("list_repo_skills", { repoIdParam: repo.id }),
+      staleTime: 30 * 1000,
+    })),
+  });
+
+  // Stable data reference for repo skills to avoid re-renders
+  const repoSkillsData = repoSkillQueries.map((q) => q.data);
+
+  // Merge local skills + repo skills (dedup by skill id, local wins)
+  const mergedSkills = useMemo(() => {
+    const localSkills = skills ?? [];
+    const localIds = new Set(localSkills.map((s) => s.id));
+
+    const repoSkills: SkillWithRepo[] = [];
+    repoSkillsData.forEach((data, idx) => {
+      if (data) {
+        const repoName = repos?.[idx]?.name ?? "Repo";
+        for (const s of data) {
+          if (!localIds.has(s.id)) {
+            repoSkills.push({ ...s, _repoName: repoName });
+          }
+        }
+      }
+    });
+
+    return [...localSkills, ...repoSkills];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skills, ...repoSkillsData, repos]);
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filter, setFilter] = useState<string>(
@@ -57,14 +95,14 @@ export default function SkillsManager() {
   useEffect(() => {
     const list =
       filter === "all"
-        ? skills
-        : skills?.filter((s) => installedAgents(s).includes(filter));
+        ? mergedSkills
+        : mergedSkills?.filter((s) => installedAgents(s).includes(filter));
     if (list?.length && !selectedId) {
       setSelectedId(list[0].id);
       setSelectedSkill(list[0]);
       setPanelMode("detail");
     }
-  }, [skills, filter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mergedSkills, filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function changeFilter(f: string) {
     setFilter(f);
@@ -96,8 +134,8 @@ export default function SkillsManager() {
   // Filter by agent, then by deferred search query (name + description)
   const filtered = useMemo(() => {
     let list = filter === "all"
-      ? skills
-      : skills?.filter((s) => installedAgents(s).includes(filter));
+      ? mergedSkills
+      : mergedSkills?.filter((s) => installedAgents(s).includes(filter));
     if (deferredSearch.trim()) {
       const q = deferredSearch.toLowerCase();
       list = list?.filter(
@@ -108,7 +146,7 @@ export default function SkillsManager() {
       );
     }
     return list;
-  }, [skills, filter, deferredSearch]);
+  }, [mergedSkills, filter, deferredSearch]);
 
   async function refreshAndReselect() {
     // Force a fresh scan, bypassing cache
@@ -161,7 +199,7 @@ export default function SkillsManager() {
           <div className="flex items-center gap-2">
             <Puzzle className="size-4" />
             <h1 className="text-sm font-semibold">{t("skills.title")}</h1>
-            {skills && (
+            {mergedSkills && (
               <span className="text-sm text-muted-foreground">
                 ({filtered?.length})
               </span>
@@ -258,10 +296,10 @@ const SkillListItem = memo(function SkillListItem({
   agents,
   onSelect,
 }: {
-  skill: Skill;
+  skill: SkillWithRepo;
   selected: boolean;
   agents: import("@/hooks/useAgents").AgentConfig[] | undefined;
-  onSelect: (skill: Skill) => void;
+  onSelect: (skill: SkillWithRepo) => void;
 }) {
   return (
     <div
@@ -285,6 +323,11 @@ const SkillListItem = memo(function SkillListItem({
             {agents?.find((a) => a.slug === slug)?.name ?? slug}
           </span>
         ))}
+        {skill._repoName && (
+          <span className="rounded-full bg-blue-500/15 text-blue-600 px-1.5 py-0.5 text-[10px] font-medium">
+            {skill._repoName}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Settings as SettingsIcon, Loader2, Trash2, Check, Globe } from "lucide-react";
+import { Settings as SettingsIcon, Loader2, Trash2, Check, Globe, GitBranch, RefreshCw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { Button } from "@/components/ui/button";
 import { useAllAgents } from "@/hooks/useAgents";
+import { useRepos, useRemoveRepo, useSyncRepo } from "@/hooks/useRepos";
 
 interface AppSettings {
   theme: string | null;
@@ -23,6 +24,9 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const { data: agents } = useAllAgents();
   const [cacheCleared, setCacheCleared] = useState(false);
+  const { data: repos } = useRepos();
+  const removeRepo = useRemoveRepo();
+  const syncRepo = useSyncRepo();
 
   const { data: settings, isLoading } = useQuery<AppSettings>({
     queryKey: ["settings"],
@@ -176,6 +180,74 @@ export default function SettingsPage() {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* Skill Repos */}
+      <section className="space-y-2">
+        <h2 className="text-sm font-medium flex items-center gap-1.5">
+          <GitBranch className="size-4" />
+          {t("repos.skillRepos")}
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          {t("repos.reposDescription")}
+        </p>
+        {repos && repos.length > 0 ? (
+          <div className="space-y-1">
+            {repos.map((repo) => {
+              const isLocal = repo.id.startsWith("local-");
+              return (
+                <div
+                  key={repo.id}
+                  className="rounded-md bg-muted/50 px-3 py-2 text-xs space-y-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium">{repo.name}</span>
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                        isLocal
+                          ? "bg-amber-500/15 text-amber-600"
+                          : "bg-blue-500/15 text-blue-600"
+                      }`}>
+                        {isLocal ? t("repos.localSource") : t("repos.gitSource")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {!isLocal && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          title={t("repos.sync")}
+                          disabled={syncRepo.isPending}
+                          onClick={() => syncRepo.mutate(repo.id)}
+                        >
+                          <RefreshCw className={`size-3 ${syncRepo.isPending ? "animate-spin" : ""}`} />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title={t("repos.remove")}
+                        disabled={removeRepo.isPending}
+                        onClick={() => removeRepo.mutate(repo.id)}
+                      >
+                        <Trash2 className="size-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground font-mono break-all">{repo.repo_url}</p>
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <span>{t("repos.skillCountLabel", { count: repo.skill_count })}</span>
+                    {!isLocal && repo.last_synced && (
+                      <span>{t("repos.lastSynced", { time: new Date(repo.last_synced).toLocaleString() })}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">{t("repos.noRepos")}</p>
+        )}
       </section>
 
     </div>

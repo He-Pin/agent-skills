@@ -151,6 +151,27 @@ const zhCN = {
     agentPathsDescription: "各 Agent 的默认技能目录。",
     revealInFinder: "在 Finder 中显示",
   },
+
+  // === Repos ===
+  repos: {
+    importRepo: "从 Git 导入",
+    importLocal: "导入本地文件夹",
+    importDescription: "添加 Git 仓库 URL，浏览并安装其中的技能。",
+    importLocalDescription: "选择包含技能的本地目录，注册为技能来源。",
+    cancel: "取消",
+    add: "添加",
+    cloning: "克隆中...",
+    skillRepos: "技能来源",
+    reposDescription: "已注册的 Git 仓库和本地目录技能来源。",
+    sync: "同步",
+    remove: "移除",
+    skillCountLabel: "{{count}} 个技能",
+    lastSynced: "同步: {{time}}",
+    noRepos: "尚未添加技能来源。",
+    repoSource: "仓库: {{name}}",
+    localSource: "本地",
+    gitSource: "Git",
+  },
 } as const;
 
 export default zhCN;
