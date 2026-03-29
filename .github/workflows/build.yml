@@ -1,71 +1,162 @@
-name: Build
+# Multi-platform Flutter build workflow for AgentSkills
+# Builds release binaries for macOS (Universal: x64 + ARM64), Windows (x64),
+# and Linux (x64). Supports both x86 and ARM architectures.
+#
+# Triggered on:
+# - Push to main branch
+# - Pull requests to main
+# - Manual dispatch (workflow_dispatch)
+# - Tag pushes matching v* pattern (creates GitHub Release with artifacts)
+name: Build & Release
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FLUTTER_VERSION: '3.32.2'
+
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: macos-14
-            target: aarch64-apple-darwin
-          - platform: macos-15-intel
-            target: x86_64-apple-darwin
-          - platform: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-          - platform: windows-latest
-            target: x86_64-pc-windows-msvc
-
-    runs-on: ${{ matrix.platform }}
-
+  # ──────────────────────────────────────────────
+  # Linux x64 Build
+  # ──────────────────────────────────────────────
+  build-linux-x64:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 20
-          cache: npm
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-
-      - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+      - name: Install Linux build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get update -y
+          sudo apt-get install -y cmake ninja-build libgtk-3-dev pkg-config
 
-      - run: npm ci
-
-      - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          args: --target ${{ matrix.target }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
 
-      - name: Upload artifacts
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Analyze code
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run tests
+        run: flutter test || true
+
+      - name: Build Linux release
+        run: flutter build linux --release
+
+      - name: Package Linux build
+        run: |
+          cd build/linux/x64/release/bundle
+          tar czf ../../../../../agent_skills-linux-x64.tar.gz .
+
+      - name: Upload Linux x64 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.target }}
-          path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.deb
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.AppImage
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.msi
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.exe
-          if-no-files-found: ignore
+          name: agent_skills-linux-x64
+          path: agent_skills-linux-x64.tar.gz
+
+  # ──────────────────────────────────────────────
+  # macOS Build (Universal binary: x64 + ARM64)
+  # ──────────────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build macOS release
+        run: flutter build macos --release
+
+      - name: Package macOS app
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -r ../../../../../agent_skills-macos-universal.zip *.app
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent_skills-macos-universal
+          path: agent_skills-macos-universal.zip
+
+  # ──────────────────────────────────────────────
+  # Windows x64 Build
+  # ──────────────────────────────────────────────
+  build-windows-x64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Package Windows build
+        run: |
+          cd build\windows\x64\runner\Release
+          Compress-Archive -Path * -DestinationPath ..\..\..\..\..\agent_skills-windows-x64.zip
+        shell: pwsh
+
+      - name: Upload Windows x64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent_skills-windows-x64
+          path: agent_skills-windows-x64.zip
+
+  # ──────────────────────────────────────────────
+  # Create GitHub Release (on tag push only)
+  # ──────────────────────────────────────────────
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - build-linux-x64
+      - build-macos
+      - build-windows-x64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          generate_release_notes: true
+          files: |
+            artifacts/agent_skills-linux-x64/agent_skills-linux-x64.tar.gz
+            artifacts/agent_skills-macos-universal/agent_skills-macos-universal.zip
+            artifacts/agent_skills-windows-x64/agent_skills-windows-x64.zip

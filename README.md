@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="src-tauri/icons/icon-rounded.png" width="128" height="128" alt="AgentSkills Logo">
-</p>
-
 <h1 align="center">AgentSkills</h1>
 
 <p align="center">
@@ -16,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="./README.zh-CN.md">简体中文</a> | 
+  <a href="./README.zh-CN.md">简体中文</a> |
     <strong>English</strong>
 </p>
 
@@ -46,65 +42,30 @@
 - **Skill Editor** — Edit SKILL.md files directly in the app
 - **File Watcher** — Auto-refreshes when skills change on disk
 - **Cross-Agent Sync** — Install a skill to one agent, sync it to all others in one click
-
-## GUI Overview
-
-<p align="center">
-  <img src="docs/images/dashboard-light.png" width="48%" alt="AgentSkills dashboard view">
-  <img src="docs/images/skills-light.png" width="48%" alt="AgentSkills skills manager view">
-</p>
-<p align="center">
-  <img src="docs/images/marketplace-light.png" width="48%" alt="AgentSkills marketplace view">
-  <img src="docs/images/import.png" width="48%" alt="AgentSkills import view">
-</p>
-<p align="center">
-  <img src="docs/images/settings.png" width="48%" alt="AgentSkills settings view">
-</p>
+- **Glassmorphism UI** — Frosted glass panels with accent color theming
+- **Internationalization** — English and Simplified Chinese support
+- **Import Wizard** — Multi-step wizard for importing from Git repos or local directories
+- **Keyboard Shortcuts** — ⌘K to search, and more
 
 ## Tech Stack
 
-**Frontend:** React 19, TypeScript, Tailwind CSS 4, shadcn/ui
+**Framework:** Flutter 3.32+ (pure Dart, no native dependencies)
 
-**Native Core:** Rust, Tauri 2, SQLite
+**State Management:** Provider + ChangeNotifier
+
+**UI Effects:** Glassmorphism via BackdropFilter (liquid_glass_renderer compatible on macOS)
+
+**Platforms:** macOS (Universal: x64 + ARM64) · Windows (x64) · Linux (x64)
 
 ## Installation
 
-### Option A: One-line install scripts (recommended)
+### Download from Releases
 
-Automatically detects your OS, architecture, and picks a matching installer from GitHub Releases.
+Download the latest build for your platform from [GitHub Releases](https://github.com/chrlsio/agent-skills/releases):
 
-Linux / macOS:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/chrlsio/agent-skills/v0.1.4/install.sh | bash
-```
-
-Windows (PowerShell):
-
-```powershell
-irm https://raw.githubusercontent.com/chrlsio/agent-skills/v0.1.4/install.ps1 | iex
-```
-
-Supported formats: Linux (`.deb` / `.rpm` / `.AppImage`) | macOS (`.dmg`) | Windows (`.exe` / `.msi`)
-
-### Option B: macOS with Homebrew
-
-```bash
-# 1. Tap this repository
-brew tap chrlsio/agent-skills https://github.com/chrlsio/agent-skills
-
-# 2. Install AgentSkills
-brew install --cask agentskills
-```
-
-Tip: if you hit quarantine-related issues, try `--no-quarantine`.
-
-### Option C: Manual download
-
-- **macOS:** `AgentSkills.app` + `.dmg`
-- **Windows:** `.msi` + `.exe`
-- **Linux:** `.AppImage` + `.deb`
-- Release page: [GitHub Releases](https://github.com/chrlsio/agent-skills/releases)
+- **macOS:** `agent_skills-macos-universal.zip` — Universal binary (Intel + Apple Silicon)
+- **Windows:** `agent_skills-windows-x64.zip` — Extract and run `agent_skills.exe`
+- **Linux:** `agent_skills-linux-x64.tar.gz` — Extract and run `./agent_skills`
 
 ### Troubleshooting
 
@@ -112,49 +73,62 @@ Tip: if you hit quarantine-related issues, try `--no-quarantine`.
 
 Due to macOS security checks, apps downloaded outside the App Store may trigger this message.
 
-Command-line fix (recommended):
-
 ```bash
-sudo xattr -rd com.apple.quarantine "/Applications/AgentSkills.app"
+sudo xattr -rd com.apple.quarantine "/path/to/AgentSkills.app"
 ```
 
-Homebrew tip:
-
-```bash
-brew install --cask --no-quarantine agentskills
-```
-
-## Getting Started
+## Getting Started (Development)
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18+)
-- [Rust](https://rustup.rs/) (stable)
-- Platform-specific Tauri dependencies — see [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/)
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (3.32+)
+- Platform-specific dependencies:
+  - **Linux:** `sudo apt install cmake ninja-build libgtk-3-dev pkg-config`
+  - **macOS:** Xcode command-line tools
+  - **Windows:** Visual Studio with C++ desktop development workload
 
 ### Development
 
 ```bash
-# Install dependencies
-npm install
+# Get dependencies
+flutter pub get
 
-# Run in development (starts Vite + Tauri)
-npm run tauri dev
+# Run in development (hot reload)
+flutter run -d linux   # or -d macos, -d windows
 
-# Frontend only (port 1420)
-npm run dev
+# Analyze code
+flutter analyze
 
-# Type check
-npx tsc
-
-# Rust tests
-cd src-tauri && cargo test
+# Run tests
+flutter test
 ```
 
 ### Build
 
 ```bash
-npm run tauri build
+# Build release for current platform
+flutter build linux --release
+flutter build macos --release
+flutter build windows --release
+```
+
+### CI/CD
+
+The GitHub Actions workflow (`.github/workflows/build.yml`) automatically builds for all platforms on push to `main`. Tag a release with `v*` to create a GitHub Release with all platform artifacts.
+
+## Architecture
+
+```
+lib/
+├── main.dart              # App entry point + window setup
+├── models/                # Data models (AgentConfig, Skill, etc.)
+├── services/              # Business logic (agents, skills, marketplace, repos, settings)
+├── providers/             # State management (AppProvider)
+├── pages/                 # Main pages (Dashboard, Skills, Marketplace, Settings)
+├── widgets/               # Reusable widgets (GlassPanel, SearchInput, Toast, etc.)
+├── theme/                 # Theme system with 6 accent color presets
+├── i18n/                  # Internationalization (EN + ZH-CN)
+└── utils/                 # Utility functions
 ```
 
 ## Contributing
