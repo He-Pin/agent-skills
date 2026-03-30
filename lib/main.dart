@@ -16,7 +16,19 @@ import 'package:agent_skills/widgets/toast_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
+
+/// Application version, kept in sync with pubspec.yaml.
+const String appVersion = '0.1.4';
+
+/// Open a URL in the system default browser.
+Future<void> _openUrl(String url) async {
+  final uri = Uri.tryParse(url);
+  if (uri != null) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,13 +57,15 @@ void main() async {
   final notificationService = NotificationService();
   await notificationService.initialize();
 
-  // Start auto-update checking
-  final updateService = UpdateService(currentVersion: '0.1.4');
+  // Start auto-update checking.
+  // The version string comes from pubspec.yaml (0.1.4+1 → '0.1.4').
+  final updateService = UpdateService(currentVersion: appVersion);
   trayService.setOnCheckUpdates(() async {
     final update = await updateService.checkForUpdates();
     if (update != null && update.hasUpdate) {
       await notificationService.showUpdateAvailable(
         version: update.latestVersion,
+        onClick: () => _openUrl(update.releaseUrl),
       );
     } else {
       await notificationService.show(
@@ -64,6 +78,7 @@ void main() async {
     onUpdateAvailable: (info) {
       notificationService.showUpdateAvailable(
         version: info.latestVersion,
+        onClick: () => _openUrl(info.releaseUrl),
       );
     },
   );

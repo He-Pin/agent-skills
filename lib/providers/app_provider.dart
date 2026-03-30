@@ -44,9 +44,6 @@ class AppProvider extends ChangeNotifier {
   String _marketplaceSource = 'skills.sh';
   String _marketplaceSort = 'all-time';
 
-  // File watcher
-  StreamSubscription<WatchEvent>? _watcherSubscription;
-
   // Getters
   List<AgentConfig> get agents => _agents;
   List<AgentConfig> get detectedAgents =>
@@ -319,20 +316,29 @@ class AppProvider extends ChangeNotifier {
 
   // --- File Watcher ---
 
+  /// All active file watcher subscriptions.
+  /// Multiple directories may be watched simultaneously (one per detected agent path).
+  final List<StreamSubscription<WatchEvent>> _watcherSubscriptions = [];
+
   void _startFileWatcher() {
-    _watcherSubscription?.cancel();
+    // Cancel all existing subscriptions before starting new ones
+    for (final sub in _watcherSubscriptions) {
+      sub.cancel();
+    }
+    _watcherSubscriptions.clear();
 
     for (final agent in _agents.where((a) => a.detected)) {
       for (final gp in agent.globalPaths) {
         final expanded = _agentService.expandHome(gp);
         try {
           final watcher = DirectoryWatcher(expanded);
-          _watcherSubscription = watcher.events.listen((_) {
+          final sub = watcher.events.listen((_) {
             // Debounce: wait a moment then refresh
             Future.delayed(const Duration(milliseconds: 500), () {
               refresh();
             });
           });
+          _watcherSubscriptions.add(sub);
         } catch (_) {
           // Directory might not exist yet
         }
@@ -342,7 +348,10 @@ class AppProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _watcherSubscription?.cancel();
+    for (final sub in _watcherSubscriptions) {
+      sub.cancel();
+    }
+    _watcherSubscriptions.clear();
     super.dispose();
   }
 }

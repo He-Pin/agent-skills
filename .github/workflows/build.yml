@@ -17,8 +17,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Default to read-only; the release job overrides with write access
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -143,6 +144,8 @@ jobs:
       - build-macos
       - build-windows-x64
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
