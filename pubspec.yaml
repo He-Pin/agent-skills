@@ -12,8 +12,6 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  # Liquid glass effects for glassmorphism UI
-  liquid_glass_renderer: ^0.3.1
   # State management
   provider: ^6.1.5
   # HTTP client
@@ -25,7 +23,7 @@ dependencies:
   path_provider: ^2.1.5
   path: ^1.9.1
   # Markdown rendering
-  flutter_markdown: ^0.7.7+2
+  flutter_markdown: ^0.7.7+1
   # TOML parsing
   toml: ^0.16.0
   # URL launcher

@@ -8,9 +8,8 @@ import 'package:flutter/material.dart';
 /// A glass morphism panel widget that provides the signature frosted-glass
 /// look of the AgentSkills app.
 ///
-/// On macOS with Impeller, this uses liquid_glass_renderer for native-quality
-/// glass effects. On Windows and Linux, it falls back to a custom
-/// BackdropFilter-based glassmorphism implementation.
+/// Uses a custom BackdropFilter-based glassmorphism implementation that works
+/// consistently across the supported desktop platforms.
 ///
 /// This replaces the LiquidGlass.tsx React component.
 class GlassPanel extends StatelessWidget {
@@ -37,10 +36,9 @@ class GlassPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Use a cross-platform glassmorphism fallback that works everywhere.
-    // liquid_glass_renderer requires Impeller which is only stable on macOS/iOS.
-    // This ClipRRect + BackdropFilter approach gives a similar frosted-glass
-    // effect on all desktop platforms.
+    // This ClipRRect + BackdropFilter approach keeps the frosted-glass effect
+    // consistent across all desktop platforms without relying on an optional
+    // renderer package that is not needed by the current implementation.
     return Container(
       width: width,
       height: height,

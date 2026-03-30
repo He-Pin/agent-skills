@@ -53,7 +53,7 @@
 
 **State Management:** Provider + ChangeNotifier
 
-**UI Effects:** Glassmorphism via BackdropFilter (liquid_glass_renderer compatible on macOS)
+**UI Effects:** Glassmorphism via BackdropFilter
 
 **Platforms:** macOS (Universal: x64 + ARM64) · Windows (x64) · Linux (x64)
 
