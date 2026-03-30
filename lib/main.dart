@@ -20,6 +20,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 
 /// Application version, kept in sync with pubspec.yaml.
+///
+/// NOTE: This must be manually updated when pubspec.yaml version changes.
+/// A future improvement could use package_info_plus to read the version
+/// at runtime, but that requires async initialization which complicates
+/// the main() startup sequence.
 const String appVersion = '0.1.4';
 
 /// Open a URL in the system default browser.

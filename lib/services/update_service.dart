@@ -49,11 +49,11 @@ class UpdateService {
   /// Start periodic update checks.
   void startPeriodicCheck({void Function(UpdateInfo)? onUpdateAvailable}) {
     _onUpdateAvailable = onUpdateAvailable;
-    // Check immediately on start
-    checkForUpdates();
+    // Fire-and-forget initial check — errors are handled inside checkForUpdates
+    unawaited(checkForUpdates());
     // Then check periodically
     _periodicTimer = Timer.periodic(_checkInterval, (_) {
-      checkForUpdates();
+      unawaited(checkForUpdates());
     });
   }
 
