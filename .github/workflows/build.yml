@@ -7,6 +7,9 @@
 # - Pull requests to main
 # - Manual dispatch (workflow_dispatch)
 # - Tag pushes matching v* or plain semver (e.g. 0.0.2) pattern (creates GitHub Release with artifacts)
+# - GitHub Release publication (handles releases created via the GitHub web UI or API,
+#   which fire a 'release' event rather than a 'push.tags' event — this is the main
+#   trigger path for releases created through the GitHub Releases page)
 name: Build & Release
 
 on:
@@ -18,14 +21,22 @@ on:
     tags: ['v*', '[0-9]*.[0-9]*']
   pull_request:
     branches: [main]
+  # Tags created via the GitHub web UI or Releases API fire a 'release' event,
+  # NOT a 'push' event. Without this trigger, binary artifacts would never be
+  # built when a release is created through the GitHub interface.
+  release:
+    types: [published]
   workflow_dispatch:
 
 # Default to read-only; the release job overrides with write access
 permissions:
   contents: read
 
+# Use the tag name as the concurrency key for release events, since on.release
+# sets github.ref to refs/heads/main (the default branch), which would otherwise
+# collide with concurrent push-to-main runs.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -138,12 +149,19 @@ jobs:
           path: agent_skills-windows-x64.zip
 
   # ──────────────────────────────────────────────
-  # Create GitHub Release (on tag push only)
+  # Create/Update GitHub Release (on tag push or release publication)
   # ──────────────────────────────────────────────
-  # Run the release job whenever this workflow was triggered by any tag push
-  # (supports both v-prefixed tags like v1.0.0 and plain semver tags like 0.0.2)
+  # Runs whenever this workflow is triggered by:
+  #   1. A tag push (push.tags)  → ref_type == 'tag'
+  #   2. A GitHub Release event (on.release.types: [published])
+  #      This is the path taken when a user creates a release via the GitHub
+  #      web UI or API. In that case github.ref_type == 'branch' (pointing at
+  #      the default branch), so we must also check event_name == 'release'.
+  #
+  # When the release already exists (event_name == 'release'), we upload assets
+  # to it without overwriting the user-written release notes.
   release:
-    if: github.ref_type == 'tag'
+    if: github.ref_type == 'tag' || github.event_name == 'release'
     needs:
       - build-linux-x64
       - build-macos
@@ -159,11 +177,31 @@ jobs:
         with:
           path: artifacts
 
-      - name: Create GitHub Release
+      # Determine the release tag name.
+      # - For 'push.tags':  github.ref_name is the tag (e.g. "0.0.3").
+      # - For 'release' event: github.ref_name is the default branch ("main"),
+      #   so we use github.event.release.tag_name instead.
+      - name: Resolve release tag name
+        id: release_meta
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag_name=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            # Release already exists — do NOT regenerate notes (would overwrite user's text)
+            echo "generate_notes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag_name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "generate_notes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.release_meta.outputs.tag_name }}
           draft: false
-          generate_release_notes: true
+          # Auto-generate notes only when creating a brand-new release via tag push.
+          # When triggered by a 'release' event, the release already exists and the
+          # user may have written their own notes — preserve them.
+          generate_release_notes: ${{ steps.release_meta.outputs.generate_notes }}
           files: |
             artifacts/agent_skills-linux-x64/agent_skills-linux-x64.tar.gz
             artifacts/agent_skills-macos-universal/agent_skills-macos-universal.zip
