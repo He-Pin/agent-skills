@@ -36,18 +36,30 @@ class RepoService {
   }
 
   /// Add a Git repository by cloning it.
+  ///
+  /// The [url] must be a valid HTTPS or Git protocol URL to prevent
+  /// flag injection attacks (e.g., URLs starting with '--').
   Future<SkillRepo> addSkillRepo(
     String url, {
     void Function(String stage)? onProgress,
   }) async {
+    // Validate URL to prevent git flag injection
+    if (!_isValidGitUrl(url)) {
+      throw ArgumentError('Invalid Git repository URL: $url');
+    }
+
     onProgress?.call('cloning');
     final repoId = _urlToId(url);
     final localPath = p.join(_reposDir, repoId);
 
     await Directory(localPath).create(recursive: true);
 
-    // Clone the repository
-    final result = await Process.run('git', ['clone', '--depth', '1', url, localPath]);
+    // Clone the repository. The '--' separates options from positional args,
+    // preventing any URL from being interpreted as a git flag.
+    final result = await Process.run(
+      'git',
+      ['clone', '--depth', '1', '--', url, localPath],
+    );
     if (result.exitCode != 0) {
       throw Exception('Failed to clone repository: ${result.stderr}');
     }
@@ -163,6 +175,18 @@ class RepoService {
   }
 
   // --- Private helpers ---
+
+  /// Validate that a URL is a safe Git repository URL.
+  ///
+  /// Only allows HTTPS, HTTP, and git:// protocol URLs to prevent
+  /// flag injection (e.g., a URL starting with '--upload-pack=...').
+  bool _isValidGitUrl(String url) {
+    final trimmed = url.trim();
+    return trimmed.startsWith('https://') ||
+        trimmed.startsWith('http://') ||
+        trimmed.startsWith('git://') ||
+        trimmed.startsWith('git@');
+  }
 
   String _urlToId(String url) {
     return url

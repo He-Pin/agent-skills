@@ -184,4 +184,15 @@ const Map<String, String> translationsZhCN = {
   'repos.repoSource': '仓库: {{name}}',
   'repos.localSource': '本地',
   'repos.gitSource': 'Git',
+
+  // System Tray
+  'tray.showWindow': '显示窗口',
+  'tray.checkForUpdates': '检查更新',
+  'tray.quit': '退出',
+
+  // Update
+  'update.available': '有可用更新',
+  'update.availableBody': 'AgentSkills v{{version}} 可供下载。点击下载。',
+  'update.upToDate': '您正在使用最新版本。',
+  'update.checking': '正在检查更新...',
 };

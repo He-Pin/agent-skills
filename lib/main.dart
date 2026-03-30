@@ -7,13 +7,33 @@ import 'package:agent_skills/pages/marketplace_page.dart';
 import 'package:agent_skills/pages/settings_page.dart';
 import 'package:agent_skills/pages/skills_page.dart';
 import 'package:agent_skills/providers/app_provider.dart';
+import 'package:agent_skills/services/notification_service.dart';
+import 'package:agent_skills/services/tray_service.dart';
+import 'package:agent_skills/services/update_service.dart';
 import 'package:agent_skills/theme/app_theme.dart';
 import 'package:agent_skills/widgets/app_layout.dart';
 import 'package:agent_skills/widgets/toast_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
+
+/// Application version, kept in sync with pubspec.yaml.
+///
+/// NOTE: This must be manually updated when pubspec.yaml version changes.
+/// A future improvement could use package_info_plus to read the version
+/// at runtime, but that requires async initialization which complicates
+/// the main() startup sequence.
+const String appVersion = '0.1.4';
+
+/// Open a URL in the system default browser.
+Future<void> _openUrl(String url) async {
+  final uri = Uri.tryParse(url);
+  if (uri != null) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +53,40 @@ void main() async {
     await windowManager.show();
     await windowManager.focus();
   });
+
+  // Initialize system tray
+  final trayService = TrayService();
+  await trayService.initialize();
+
+  // Initialize notification service
+  final notificationService = NotificationService();
+  await notificationService.initialize();
+
+  // Start auto-update checking.
+  // The version string comes from pubspec.yaml (0.1.4+1 → '0.1.4').
+  final updateService = UpdateService(currentVersion: appVersion);
+  trayService.setOnCheckUpdates(() async {
+    final update = await updateService.checkForUpdates();
+    if (update != null && update.hasUpdate) {
+      await notificationService.showUpdateAvailable(
+        version: update.latestVersion,
+        onClick: () => _openUrl(update.releaseUrl),
+      );
+    } else {
+      await notificationService.show(
+        title: 'AgentSkills',
+        body: 'You are running the latest version.',
+      );
+    }
+  });
+  updateService.startPeriodicCheck(
+    onUpdateAvailable: (info) {
+      notificationService.showUpdateAvailable(
+        version: info.latestVersion,
+        onClick: () => _openUrl(info.releaseUrl),
+      );
+    },
+  );
 
   runApp(const AgentSkillsApp());
 }

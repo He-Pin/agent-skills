@@ -191,4 +191,15 @@ const Map<String, String> translationsEN = {
   'repos.repoSource': 'Repo: {{name}}',
   'repos.localSource': 'Local',
   'repos.gitSource': 'Git',
+
+  // System Tray
+  'tray.showWindow': 'Show Window',
+  'tray.checkForUpdates': 'Check for Updates',
+  'tray.quit': 'Quit',
+
+  // Update
+  'update.available': 'Update Available',
+  'update.availableBody': 'AgentSkills v{{version}} is available. Click to download.',
+  'update.upToDate': 'You are running the latest version.',
+  'update.checking': 'Checking for updates...',
 };
