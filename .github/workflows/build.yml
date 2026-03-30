@@ -6,13 +6,16 @@
 # - Push to main branch
 # - Pull requests to main
 # - Manual dispatch (workflow_dispatch)
-# - Tag pushes matching v* pattern (creates GitHub Release with artifacts)
+# - Tag pushes matching v* or plain semver (e.g. 0.0.2) pattern (creates GitHub Release with artifacts)
 name: Build & Release
 
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    # Trigger on both v-prefixed (v1.0.0) and plain semver (0.0.2) tags.
+    # '[0-9]*.[0-9]*' requires at least "digit.digit" to avoid matching
+    # non-semver tags like "1abc".
+    tags: ['v*', '[0-9]*.[0-9]*']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -137,8 +140,10 @@ jobs:
   # ──────────────────────────────────────────────
   # Create GitHub Release (on tag push only)
   # ──────────────────────────────────────────────
+  # Run the release job whenever this workflow was triggered by any tag push
+  # (supports both v-prefixed tags like v1.0.0 and plain semver tags like 0.0.2)
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.ref_type == 'tag'
     needs:
       - build-linux-x64
       - build-macos
