@@ -7,6 +7,9 @@ import 'package:agent_skills/pages/marketplace_page.dart';
 import 'package:agent_skills/pages/settings_page.dart';
 import 'package:agent_skills/pages/skills_page.dart';
 import 'package:agent_skills/providers/app_provider.dart';
+import 'package:agent_skills/services/notification_service.dart';
+import 'package:agent_skills/services/tray_service.dart';
+import 'package:agent_skills/services/update_service.dart';
 import 'package:agent_skills/theme/app_theme.dart';
 import 'package:agent_skills/widgets/app_layout.dart';
 import 'package:agent_skills/widgets/toast_manager.dart';
@@ -33,6 +36,37 @@ void main() async {
     await windowManager.show();
     await windowManager.focus();
   });
+
+  // Initialize system tray
+  final trayService = TrayService();
+  await trayService.initialize();
+
+  // Initialize notification service
+  final notificationService = NotificationService();
+  await notificationService.initialize();
+
+  // Start auto-update checking
+  final updateService = UpdateService(currentVersion: '0.1.4');
+  trayService.setOnCheckUpdates(() async {
+    final update = await updateService.checkForUpdates();
+    if (update != null && update.hasUpdate) {
+      await notificationService.showUpdateAvailable(
+        version: update.latestVersion,
+      );
+    } else {
+      await notificationService.show(
+        title: 'AgentSkills',
+        body: 'You are running the latest version.',
+      );
+    }
+  });
+  updateService.startPeriodicCheck(
+    onUpdateAvailable: (info) {
+      notificationService.showUpdateAvailable(
+        version: info.latestVersion,
+      );
+    },
+  );
 
   runApp(const AgentSkillsApp());
 }
